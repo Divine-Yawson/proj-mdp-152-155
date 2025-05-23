@@ -40,7 +40,7 @@ pipeline {
                     sh 'docker rm calculator-app || true'
 
                     docker.image("${DOCKERHUB_REPO}:${env.BUILD_NUMBER}").run(
-                        "--name calculator-app -p 8080:8080 -d"
+                        "--name calculator-app -p 8081:8080 -d"
                     )
                 }
             }
