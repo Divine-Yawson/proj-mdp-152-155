@@ -26,7 +26,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
                     script {
                         docker.withRegistry('', 'dockerhub-creds') {
-                            dockerImage.push()
+                            dockerImage.push("${env.BUILD_NUMBER}")
                         }
                     }
                 }
