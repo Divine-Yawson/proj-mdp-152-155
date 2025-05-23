@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         IMAGE_NAME = 'calculator-app'
-        DOCKERHUB_REPO = 'your-divine2200/calculator-app'
+        DOCKERHUB_REPO = 'divine2200/calculator-app'
     }
 
     stages {
