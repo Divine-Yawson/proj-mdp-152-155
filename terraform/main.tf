@@ -1,9 +1,20 @@
 provider "aws" {
-  region = "us-east-1"
+  region = var.aws_region
 }
 
-resource "aws_vpc" "main-k8s" {
-  cidr_block = "10.0.0.0/16"
+# S3 Bucket for kops state storage
+resource "aws_s3_bucket" "kops_state" {
+  bucket = var.kops_s3_bucket
+
+  tags = {
+    Name        = "kops-state-store"
+    Environment = "k8s-prod"
+  }
+}
+
+# Create a VPC
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
   enable_dns_support   = true
   enable_dns_hostnames = true
 
@@ -12,80 +23,59 @@ resource "aws_vpc" "main-k8s" {
   }
 }
 
-resource "aws_subnet" "subnet_a" {
-  vpc_id                  = aws_vpc.main-k8s.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = "us-east-1a"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "subnet-a"
-  }
-}
-
-resource "aws_subnet" "subnet_b" {
-  vpc_id                  = aws_vpc.main-k8s.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = "us-east-1b"
-  map_public_ip_on_launch = true
-
-  tags = {
-    Name = "subnet-b"
-  }
-}
-
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.main-k8s.id
+# Internet Gateway
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
 
   tags = {
     Name = "k8s-igw"
   }
 }
 
-resource "aws_route_table" "route_table" {
-  vpc_id = aws_vpc.main-k8s.id
+# Public Subnets across two Availability Zones
+resource "aws_subnet" "public_1" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_1_cidr
+  availability_zone = var.az1
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "k8s-public-subnet-1"
+  }
+}
+
+resource "aws_subnet" "public_2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_2_cidr
+  availability_zone = var.az2
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "k8s-public-subnet-2"
+  }
+}
+
+# Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
 
   route {
     cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
+    gateway_id = aws_internet_gateway.gw.id
   }
 
   tags = {
-    Name = "k8s-route-table"
+    Name = "k8s-public-route-table"
   }
 }
 
+# Associate Route Table with Subnets
 resource "aws_route_table_association" "a" {
-  subnet_id      = aws_subnet.subnet_a.id
-  route_table_id = aws_route_table.route_table.id
+  subnet_id      = aws_subnet.public_1.id
+  route_table_id = aws_route_table.public.id
 }
 
 resource "aws_route_table_association" "b" {
-  subnet_id      = aws_subnet.subnet_b.id
-  route_table_id = aws_route_table.route_table.id
-}
-
-resource "aws_s3_bucket" "kops_state" {
-  bucket = var.kops_s3_bucket
-  acl    = "private"
-
-  versioning {
-    enabled = true
-  }
-
-  tags = {
-    Name = "kops-state-store"
-  }
-} 
-
-output "vpc_id" {
-  value = aws_vpc.main-k8s.id
-}
-
-output "subnet_ids" {
-  value = [aws_subnet.subnet_a.id, aws_subnet.subnet_b.id]
-}
-
-output "s3_bucket" {
-  value = aws_s3_bucket.kops_state.bucket
+  subnet_id      = aws_subnet.public_2.id
+  route_table_id = aws_route_table.public.id
 }

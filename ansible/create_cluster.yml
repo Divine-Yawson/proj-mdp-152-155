@@ -1,0 +1,45 @@
+---
+- name: Create Kubernetes Cluster using Kops
+  hosts: localhost
+  become: no
+  vars:
+    cluster_name: "k8scluster.example.com"    # Replace with your actual DNS name
+    state_store: "s3://your-kops-state-bucket"  # Replace with your S3 bucket
+    region: "us-east-1"                        # Match your AWS region
+    zones: "us-east-1a,us-east-1b"             # Your availability zones
+    node_count: 2
+    node_size: "t3.medium"
+    master_size: "t3.medium"
+
+  tasks:
+    - name: Export KOPS_STATE_STORE
+      shell: "export KOPS_STATE_STORE={{ state_store }}"
+      environment:
+        KOPS_STATE_STORE: "{{ state_store }}"
+
+    - name: Create kops cluster configuration
+      shell: |
+        kops create cluster \
+          --cloud=aws \
+          --zones={{ zones }} \
+          --name={{ cluster_name }} \
+          --state={{ state_store }} \
+          --node-count={{ node_count }} \
+          --node-size={{ node_size }} \
+          --master-size={{ master_size }} \
+          --dns-zone={{ cluster_name }} \
+          --yes
+      environment:
+        KOPS_STATE_STORE: "{{ state_store }}"
+
+    - name: Wait for cluster to be ready
+      shell: |
+        kops validate cluster --state={{ state_store }} --name {{ cluster_name }} --wait 10m
+      register: validation
+      retries: 10
+      delay: 60
+      until: validation.rc == 0
+
+    - name: Display validation output
+      debug:
+        var: validation.stdout_lines
