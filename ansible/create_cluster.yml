@@ -3,13 +3,13 @@
   hosts: localhost
   become: no
   vars:
-    cluster_name: "k8scluster.example.com"    # Replace with your actual DNS name
-    state_store: "s3://your-kops-state-bucket"  # Replace with your S3 bucket
-    region: "us-east-1"                        # Match your AWS region
-    zones: "us-east-1a,us-east-1b"             # Your availability zones
+    cluster_name: "k8scluster.k8s.local"        # MUST end with .k8s.local for gossip DNS
+    state_store: "s3://my-k8s-bucket2200"       # Replace with your actual S3 bucket
+    region: "us-east-1"                         # Your AWS region
+    zones: "us-east-1a,us-east-1b"              # Availability zones
     node_count: 2
-    node_size: "t3.medium"
-    master_size: "t3.medium"
+    node_size: "t2.medium"
+    control_plane_size: "t2.medium"             # Updated from deprecated master-size
 
   tasks:
     - name: Export KOPS_STATE_STORE
@@ -17,7 +17,7 @@
       environment:
         KOPS_STATE_STORE: "{{ state_store }}"
 
-    - name: Create kops cluster configuration
+    - name: Create kops cluster configuration using gossip DNS
       shell: |
         kops create cluster \
           --cloud=aws \
@@ -26,8 +26,7 @@
           --state={{ state_store }} \
           --node-count={{ node_count }} \
           --node-size={{ node_size }} \
-          --master-size={{ master_size }} \
-          --dns-zone={{ cluster_name }} \
+          --control-plane-size={{ control_plane_size }} \
           --yes
       environment:
         KOPS_STATE_STORE: "{{ state_store }}"
@@ -43,3 +42,4 @@
     - name: Display validation output
       debug:
         var: validation.stdout_lines
+

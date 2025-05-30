@@ -38,3 +38,4 @@ variable "az2" {
   type        = string
   default     = "us-east-1b"
 }
+

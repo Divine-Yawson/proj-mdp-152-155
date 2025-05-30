@@ -3,16 +3,20 @@
   hosts: localhost
   become: no
   vars:
-    cluster_name: "k8scluster.example.com"    # Replace with your actual cluster domain
-    state_store: "s3://your-kops-state-bucket"  # Replace with your actual S3 bucket
+    cluster_name: "k8scluster.k8s.local"            # Use '.k8s.local' for gossip DNS (no Route 53)
+    state_store: "s3://my-k8s-bucket2200"           # Your actual Kops state bucket
 
   tasks:
     - name: Delete the Kubernetes cluster
       shell: |
-        kops delete cluster --name {{ cluster_name }} --state {{ state_store }} --yes
+        kops delete cluster \
+          --name {{ cluster_name }} \
+          --state {{ state_store }} \
+          --yes
       environment:
         KOPS_STATE_STORE: "{{ state_store }}"
 
     - name: Print confirmation message
       debug:
         msg: "Cluster '{{ cluster_name }}' has been deleted from state store '{{ state_store }}'."
+
