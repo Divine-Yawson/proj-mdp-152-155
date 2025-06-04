@@ -4,12 +4,14 @@ pipeline {
     environment {
         IMAGE_NAME = 'calculator-app'
         DOCKERHUB_REPO = 'divine2200/calculator-app'
+        DEPLOYMENT_FILE = 'k8s/deployment.yaml'
+        SERVICE_FILE = 'k8s/service.yaml'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'project-1', url: 'https://github.com/Divine-Yawson/proj-mdp-152-155.git'
+                git branch: 'project-3', url: 'https://github.com/Divine-Yawson/proj-mdp-152-155.git'
             }
         }
 
@@ -27,22 +29,30 @@ pipeline {
                     script {
                         docker.withRegistry('', 'dockerhub-creds') {
                             dockerImage.push("${env.BUILD_NUMBER}")
+                            dockerImage.push("latest")
                         }
                     }
                 }
             }
         }
 
-        stage('Run Container') {
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh 'docker stop calculator-app || true'
-                    sh 'docker rm calculator-app || true'
+                    // Update the image tag in your Kubernetes deployment manifest
+                    sh "sed -i 's|image:.*|image: ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}|' ${DEPLOYMENT_FILE}"
 
-                    docker.image("${DOCKERHUB_REPO}:${env.BUILD_NUMBER}").run(
-                        "--name calculator-app -p 8081:8080 -d"
-                    )
+                    // Apply the updated Kubernetes manifests
+                    sh "kubectl apply -f ${DEPLOYMENT_FILE}"
+                    sh "kubectl apply -f ${SERVICE_FILE}"
                 }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                sh "kubectl get pods -o wide"
+                sh "kubectl get svc -o wide"
             }
         }
     }
