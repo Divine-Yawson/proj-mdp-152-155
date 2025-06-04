@@ -38,21 +38,32 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
-                script {
-                    // Update the image tag in your Kubernetes deployment manifest
-                    sh "sed -i 's|image:.*|image: ${DOCKERHUB_REPO}:${env.BUILD_NUMBER}|' ${DEPLOYMENT_FILE}"
+                withCredentials([file(credentialsId: 'kubeconfig-id', variable: 'KUBECONFIG_FILE')]) {
+                    script {
+                        sh '''
+                            export KUBECONFIG=$KUBECONFIG_FILE
 
-                    // Apply the updated Kubernetes manifests
-                    sh "kubectl apply -f ${DEPLOYMENT_FILE}"
-                    sh "kubectl apply -f ${SERVICE_FILE}"
+                            # Update the image tag in the deployment file
+                            sed -i 's|image:.*|image: divine2200/calculator-app:${BUILD_NUMBER}|' ${DEPLOYMENT_FILE}
+
+                            # Apply the Kubernetes manifests
+                            kubectl apply -f ${DEPLOYMENT_FILE}
+                            kubectl apply -f ${SERVICE_FILE}
+                        '''
+                    }
                 }
             }
         }
 
         stage('Verify Deployment') {
             steps {
-                sh "kubectl get pods -o wide"
-                sh "kubectl get svc -o wide"
+                withCredentials([file(credentialsId: 'kubeconfig-id', variable: 'KUBECONFIG_FILE')]) {
+                    sh '''
+                        export KUBECONFIG=$KUBECONFIG_FILE
+                        kubectl get pods -o wide
+                        kubectl get svc -o wide
+                    '''
+                }
             }
         }
     }
